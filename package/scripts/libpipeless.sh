@@ -73,7 +73,7 @@ pipeless_install() {
 
     (
         cd /tmp
-        wget https://raw.githubusercontent.com/pipeless-ai/pipeless/main/install.sh
+        wget https://raw.githubusercontent.com/syezovskikh/pipeless/main/install.sh
         chmod +x install.sh
         # Build Pipeless to ensure it links to the Python version of the image
         bash install.sh --build

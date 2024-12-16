@@ -183,7 +183,7 @@ buildPipeless() {
   BUILD_TMP_DIR="$(mktemp -d)"
   mkdir -p "$PIPELESS_INSTALL_DIR"
   echo "Cloning Pipeless repo into ${BUILD_TMP_DIR}"
-  git clone https://github.com/pipeless-ai/pipeless.git "$BUILD_TMP_DIR"
+  git clone https://github.com/syezovskikh/pipeless.git "$BUILD_TMP_DIR"
   (
     cd "$BUILD_TMP_DIR"
 
