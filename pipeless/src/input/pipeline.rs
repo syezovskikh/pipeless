@@ -206,7 +206,66 @@ fn create_input_bin(
         pipeless::events::publish_new_input_caps_event_sync(
             pipeless_bus_sender, forced_caps_str
         );
-    } else {
+    } else if uri.starts_with("gige") { // Device GigE Cam
+            let aravissrc = pipeless::gst::utils::create_generic_component("aravissrc", "aravissrc")?;
+            let bayer2rgb = pipeless::gst::utils::create_generic_component("bayer2rgb", "bayer2rgb")?;
+            let videoconvert = pipeless::gst::utils::create_generic_component("videoconvert", "videoconvert")?;
+    
+            let uri_parts: Vec<&str> = uri.split("://").collect();
+            if uri_parts.len() == 2 {
+                aravissrc.set_property("camera-name", uri_parts[1]);
+            } else if uri_parts.len() > 2 {
+                error!("The provided input URI using gige contains more than one video source. URI: {}", uri);
+                return Err(InputPipelineError::new("Wrong input URI provided"));
+            }
+    
+            // Webcam resolutions are not standard and we can't read the webcam caps,
+            // force a hardcoded resolution so that we annouce a correct resolution to the output.
+            //let resolution = "width=1920,height=1080";
+            let resolution = "width=640,height=480";
+            let caps_str1 = format!("video/x-bayer,format=grbg,{}", resolution);
+            //let caps_str1 = "video/x-bayer";
+            let caps1 = gst::Caps::from_str(&caps_str1)
+                .map_err(|_| { InputPipelineError::new("Unable to create caps from string") })?;
+            let capsfilter1 = gst::ElementFactory::make("capsfilter")
+                .name("capsfilter1")
+                .property("caps", caps1)
+                .build()
+                .map_err(|_| { InputPipelineError::new("Failed to create capsfilter1") })?;
+    
+            let caps_str2 = format!("video/x-raw,format=RGBx,{}", resolution);
+            let caps2 = gst::Caps::from_str(&caps_str2)
+                .map_err(|_| { InputPipelineError::new("Unable to create caps from string") })?;
+            let capsfilter2 = gst::ElementFactory::make("capsfilter")
+                .name("capsfilter2")
+                .property("caps", caps2)
+                .build()
+                .map_err(|_| { InputPipelineError::new("Failed to create capsfilter2") })?;
+
+            bin.add_many([&aravissrc, &capsfilter1, &bayer2rgb, &capsfilter2, &videoconvert])
+            .map_err(|_| { InputPipelineError::new("Unable to add elements to input bin") })?;
+
+            aravissrc.link(&capsfilter1).map_err(|_| { InputPipelineError::new("Error linking aravissrc to capsfilter") })?;
+            capsfilter1.link(&bayer2rgb).map_err(|_| { InputPipelineError::new("Error linking capsfilter to bayer2rgb") })?;
+            bayer2rgb.link(&capsfilter2).map_err(|_| { InputPipelineError::new("Error linking bayer2rgb to capsfilter") })?;
+            capsfilter2.link(&videoconvert).map_err(|_| { InputPipelineError::new("Error linking capsfilter2 to videoconvert") })?;
+    
+            // Create ghostpad to be able to plug other components to the bin
+            //let src_pad = bayer2rgb.static_pad("src")
+            let src_pad = videoconvert.static_pad("src")
+                .ok_or_else(|| { InputPipelineError::new("Failed to create the pipeline. Unable to get videoconvert source pad.") })?;
+            let ghostpath_src = gst::GhostPad::with_target(&src_pad)
+                .map_err(|_| { InputPipelineError::new("Unable to create the ghost pad to link bin") })?;
+            bin.add_pad(&ghostpath_src)
+                .map_err(|_| { InputPipelineError::new("Unable to add ghostpad to input bin") })?;
+    
+            // aravissrc doesn't have caps property that we can handle. Notify the output about the new stream
+            let caps_str3 = format!("video/x-raw,format=RGB,framerate=1/30,{}", resolution);
+    
+            pipeless::events::publish_new_input_caps_event_sync(
+                pipeless_bus_sender, caps_str3
+            );
+        } else {
         // Use uridecodebin by default
         let uridecodebin = pipeless::gst::utils::create_generic_component("uridecodebin3", "source")?;
         let videoconvert = pipeless::gst::utils::create_generic_component("videoconvert", "videoconvert")?;
@@ -406,6 +465,7 @@ fn create_gst_pipeline(
         .name("appsink")
         .property("emit-signals", true)
         .property("caps", sink_caps)
+        .property("drop", true)
         .build()
         .map_err(|_| { InputPipelineError::new("Failed to create appsink") })?
         .dynamic_cast::<gst_app::AppSink>()
