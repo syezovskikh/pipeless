@@ -479,24 +479,26 @@ initArch
 initOS
 create_device_id
 
-checkDesiredVersion
-if ! checkPipelessInstalledVersion; then
-  if ! verifySupported; then
-    verifyDependencies
-    buildPipeless
-  else
-    verifyDependencies
-    downloadFile
-    verifyFile
-    installFile
-  fi
-  setupPipelessEnv
+buildPipeless
 
-  create_report "success"
-
-  echo ""
-  echo "Useful resources:"
-  echo "* Getting started guide: https://www.pipeless.ai/docs/v1/getting-started"
-  echo "* Step by step examples: https://www.pipeless.ai/docs/v1/examples"
-fi
+#checkDesiredVersion
+#if ! checkPipelessInstalledVersion; then
+#  if ! verifySupported; then
+#    verifyDependencies
+#    buildPipeless
+#  else
+#    verifyDependencies
+#    downloadFile
+#    verifyFile
+#    installFile
+#  fi
+#  setupPipelessEnv
+#
+#  create_report "success"
+#
+#  echo ""
+#  echo "Useful resources:"
+#  echo "* Getting started guide: https://www.pipeless.ai/docs/v1/getting-started"
+#  echo "* Step by step examples: https://www.pipeless.ai/docs/v1/examples"
+#fi
 cleanup
